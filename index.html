@@ -356,6 +356,7 @@
         let inventory = JSON.parse(localStorage.getItem('inventory_data')) || [];
         let responsibleName = localStorage.getItem('inventory_responsible') || "";
         let charts = {};
+        let currentImageBase64 = null; // New state cache
 
         // --- Core Functions ---
         
@@ -395,6 +396,20 @@
             localStorage.setItem('inventory_responsible', name);
         }
 
+        // Optimized Image Preview with Cache
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentImageBase64 = e.target.result; // Cache result
+                    document.getElementById('preview-image').src = currentImageBase64;
+                    document.getElementById('preview-image').classList.remove('hidden');
+                    document.getElementById('upload-placeholder').classList.add('hidden');
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
         function handleFormSubmit(e) {
             e.preventDefault();
             
@@ -403,10 +418,8 @@
             const originalText = btn.innerHTML;
             btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Guardando...`;
             btn.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
-            btn.classList.add('bg-green-600', 'hover:bg-green-700'); // Green color as requested
+            btn.classList.add('bg-green-600', 'hover:bg-green-700'); // Green color
 
-            const fileInput = document.getElementById('item-image');
-            
             // Logic for Location + SubLocation
             let locationVal = document.getElementById('item-location').value;
             if (locationVal === 'Aulas Generales') {
@@ -423,34 +436,27 @@
                 condition: document.getElementById('item-condition').value,
                 description: document.getElementById('item-desc').value,
                 date: new Date().toLocaleDateString(),
-                image: null
+                image: currentImageBase64 // Use cached image directly! No re-read.
             };
 
-            const processSave = () => {
-                inventory.unshift(newItem);
+            // Instant Save Logic (No Timeout)
+            inventory.unshift(newItem);
+            try {
                 localStorage.setItem('inventory_data', JSON.stringify(inventory));
-                
-                // Show Modal instead of resetting immediately
-                setTimeout(() => {
-                    // Reset button style
-                    btn.innerHTML = originalText;
-                    btn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
-                    btn.classList.remove('bg-green-600', 'hover:bg-green-700');
-                    
-                    document.getElementById('success-modal').classList.remove('hidden');
-                }, 500); // Small delay for visual effect
-            };
-
-            if (fileInput.files[0]) {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    newItem.image = reader.result;
-                    processSave();
-                };
-                reader.readAsDataURL(fileInput.files[0]);
-            } else {
-                processSave();
+            } catch (e) {
+                alert("Almacenamiento lleno o imagen muy pesada. Intente con una foto más pequeña.");
+                btn.innerHTML = originalText;
+                btn.classList.add('bg-indigo-600');
+                btn.classList.remove('bg-green-600');
+                return;
             }
+            
+            // Show Success Modal Immediately
+            btn.innerHTML = originalText;
+            btn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+            btn.classList.remove('bg-green-600', 'hover:bg-green-700');
+            
+            document.getElementById('success-modal').classList.remove('hidden');
         }
 
         // Modal Actions
@@ -470,6 +476,7 @@
             document.getElementById('preview-image').classList.add('hidden');
             document.getElementById('upload-placeholder').classList.remove('hidden');
             document.getElementById('sub-location-container').classList.add('hidden');
+            currentImageBase64 = null; // Clear cache
             setCondition('Bueno');
         }
 
@@ -601,18 +608,6 @@
                     `;
                     grid.appendChild(card);
                 });
-            }
-        }
-
-        function previewImage(input) {
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    document.getElementById('preview-image').src = e.target.result;
-                    document.getElementById('preview-image').classList.remove('hidden');
-                    document.getElementById('upload-placeholder').classList.add('hidden');
-                }
-                reader.readAsDataURL(input.files[0]);
             }
         }
 
