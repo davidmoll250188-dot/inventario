@@ -85,7 +85,7 @@
         
         <div class="p-4 border-t border-slate-100">
             <button onclick="exportPDF()" class="w-full py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition shadow-md flex items-center justify-center gap-2">
-                <i class="fa-solid fa-file-pdf"></i> Exportar PDF
+                <i class="fa-solid fa-file-pdf"></i> Lista Completa PDF
             </button>
         </div>
     </aside>
@@ -95,11 +95,16 @@
         
         <!-- View: DASHBOARD -->
         <section id="view-dashboard" class="p-6 md:p-10 fade-in">
-            <header class="mb-8">
-                <h2 class="text-2xl font-bold text-slate-800">Resumen Analítico</h2>
-                <p class="text-slate-500 mt-1 max-w-2xl">
-                    Bienvenido al panel de control. Configure los datos generales y visualice el estado del inventario.
-                </p>
+            <header class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">Resumen Analítico</h2>
+                    <p class="text-slate-500 mt-1 max-w-2xl">
+                        Bienvenido al panel de control. Visualice el estado del inventario en tiempo real.
+                    </p>
+                </div>
+                <button onclick="exportDashboardPDF()" class="bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50 px-4 py-2 rounded-lg font-medium shadow-sm transition flex items-center gap-2">
+                    <i class="fa-solid fa-file-image"></i> Descargar Reporte Visual
+                </button>
             </header>
 
             <!-- Responsible Person Input -->
@@ -110,7 +115,7 @@
                 <div class="flex-1 w-full">
                     <label for="responsible-name" class="block text-sm font-bold text-indigo-900 mb-1">Nombre del Responsable del Inventario</label>
                     <input type="text" id="responsible-name" placeholder="Escriba su nombre completo aquí..." class="w-full p-3 rounded-lg border-0 ring-1 ring-indigo-200 focus:ring-2 focus:ring-indigo-500 text-slate-700 shadow-inner" oninput="saveResponsibleName()">
-                    <p class="text-xs text-indigo-400 mt-1">* Este nombre aparecerá en el reporte PDF exportado.</p>
+                    <p class="text-xs text-indigo-400 mt-1">* Este nombre aparecerá en los reportes exportados.</p>
                 </div>
             </div>
 
@@ -317,12 +322,33 @@
 
                 <div class="pt-4 flex gap-3">
                     <button type="button" onclick="router('inventory')" class="flex-1 py-3 text-slate-600 font-bold bg-slate-100 hover:bg-slate-200 rounded-lg transition">Cancelar</button>
-                    <button type="submit" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-lg hover:bg-indigo-700 transition">Guardar</button>
+                    <button type="submit" id="save-btn" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-lg hover:bg-indigo-700 transition flex justify-center items-center gap-2">
+                        <span>Guardar</span>
+                    </button>
                 </div>
             </form>
         </section>
 
     </main>
+
+    <!-- Success Modal Overlay -->
+    <div id="success-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center fade-in backdrop-blur-sm">
+        <div class="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl text-center m-4">
+            <div class="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-sm">
+                <i class="fa-solid fa-check"></i>
+            </div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">¡Registro Exitoso!</h3>
+            <p class="text-slate-500 mb-6 text-sm">El bien ha sido agregado correctamente a la base de datos.</p>
+            <div class="flex flex-col gap-3">
+                <button onclick="continueAdding()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition shadow-lg shadow-indigo-200">
+                    <i class="fa-solid fa-plus mr-2"></i> Registrar Otro Item
+                </button>
+                <button onclick="finishAdding()" class="w-full py-3 text-slate-600 font-bold bg-slate-100 hover:bg-slate-200 rounded-lg transition">
+                    Finalizar y Ver Lista
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- JavaScript Logic -->
     <script>
@@ -346,7 +372,6 @@
 
             if(viewId === 'dashboard') {
                 updateDashboard();
-                // Load saved name
                 document.getElementById('responsible-name').value = responsibleName;
             }
             if(viewId === 'inventory') renderInventoryList();
@@ -373,6 +398,13 @@
         function handleFormSubmit(e) {
             e.preventDefault();
             
+            // Visual feedback on button
+            const btn = document.getElementById('save-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Guardando...`;
+            btn.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+            btn.classList.add('bg-green-600', 'hover:bg-green-700'); // Green color as requested
+
             const fileInput = document.getElementById('item-image');
             
             // Logic for Location + SubLocation
@@ -394,29 +426,51 @@
                 image: null
             };
 
-            const saveAndReset = () => {
+            const processSave = () => {
                 inventory.unshift(newItem);
                 localStorage.setItem('inventory_data', JSON.stringify(inventory));
                 
-                document.getElementById('addForm').reset();
-                document.getElementById('preview-image').classList.add('hidden');
-                document.getElementById('upload-placeholder').classList.remove('hidden');
-                document.getElementById('sub-location-container').classList.add('hidden'); // Reset sub-location visibility
-                setCondition('Bueno');
-                
-                router('inventory');
+                // Show Modal instead of resetting immediately
+                setTimeout(() => {
+                    // Reset button style
+                    btn.innerHTML = originalText;
+                    btn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+                    btn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                    
+                    document.getElementById('success-modal').classList.remove('hidden');
+                }, 500); // Small delay for visual effect
             };
 
             if (fileInput.files[0]) {
                 const reader = new FileReader();
                 reader.onloadend = () => {
                     newItem.image = reader.result;
-                    saveAndReset();
+                    processSave();
                 };
                 reader.readAsDataURL(fileInput.files[0]);
             } else {
-                saveAndReset();
+                processSave();
             }
+        }
+
+        // Modal Actions
+        function continueAdding() {
+            document.getElementById('success-modal').classList.add('hidden');
+            resetForm();
+        }
+
+        function finishAdding() {
+            document.getElementById('success-modal').classList.add('hidden');
+            resetForm();
+            router('inventory');
+        }
+
+        function resetForm() {
+            document.getElementById('addForm').reset();
+            document.getElementById('preview-image').classList.add('hidden');
+            document.getElementById('upload-placeholder').classList.remove('hidden');
+            document.getElementById('sub-location-container').classList.add('hidden');
+            setCondition('Bueno');
         }
 
         function deleteItem(id) {
@@ -673,6 +727,68 @@
             doc.text("Firma del Docente Tutor", 105, finalY + 48, { align: 'center' });
 
             doc.save(`Inventario_Escolar_${new Date().toISOString().slice(0,10)}.pdf`);
+        }
+
+        async function exportDashboardPDF() {
+            if (!window.jspdf) { alert("Librerías cargando..."); return; }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // Header
+            doc.setFillColor(79, 70, 229); 
+            doc.rect(0, 0, 210, 32, 'F'); 
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(18);
+            doc.text("Reporte Visual del Inventario", 14, 17);
+            
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "normal");
+            const respName = responsibleName || "No especificado";
+            doc.text(`Responsable: ${respName}`, 14, 25);
+            doc.setFontSize(10);
+            doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 195, 17, { align: 'right' });
+
+            // Stats Text
+            doc.setTextColor(0,0,0);
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "bold");
+            doc.text("Indicadores Clave (KPIs)", 14, 45);
+
+            const totalItems = document.getElementById("kpi-total-items").innerText;
+            const totalUnits = document.getElementById("kpi-total-units").innerText;
+            const goodCond = document.getElementById("kpi-good-condition").innerText;
+
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.text(`• Total Items Registrados: ${totalItems}`, 20, 55);
+            doc.text(`• Unidades Totales: ${totalUnits}`, 20, 62);
+            doc.text(`• Porcentaje en Buen Estado: ${goodCond}`, 20, 69);
+
+            // Add Charts
+            const chart1 = document.getElementById('conditionChart');
+            const chart2 = document.getElementById('categoryChart');
+
+            if (chart1 && chart2) {
+                const img1 = chart1.toDataURL("image/png");
+                const img2 = chart2.toDataURL("image/png");
+
+                doc.setFontSize(12);
+                doc.setFont("helvetica", "bold");
+                doc.text("Gráfico de Condición", 14, 85);
+                doc.addImage(img1, 'PNG', 15, 90, 80, 80); // x, y, w, h
+
+                doc.text("Distribución por Categoría", 110, 85);
+                doc.addImage(img2, 'PNG', 110, 90, 80, 80);
+            }
+
+            // Signature
+            doc.setDrawColor(0);
+            doc.setLineWidth(0.5);
+            doc.line(70, 250, 140, 250); 
+            doc.setFontSize(11);
+            doc.text("Firma del Docente Tutor", 105, 258, { align: 'center' });
+
+            doc.save(`Dashboard_Inventario_${new Date().toISOString().slice(0,10)}.pdf`);
         }
 
         // --- Init ---
