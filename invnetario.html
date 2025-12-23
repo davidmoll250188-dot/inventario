@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InventarioPro Suite | Gestión y Análisis</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- jsPDF & AutoTable -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- FontAwesome (Icons) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; }
+        
+        /* Chart Container Styles - STRICTLY ENFORCED */
+        .chart-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        
+        @media (min-width: 768px) {
+            .chart-wrapper {
+                height: 350px;
+            }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #818cf8; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6366f1; }
+
+        /* Transitions */
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .nav-active {
+            background-color: #EEF2FF;
+            color: #4F46E5;
+            border-right: 4px solid #4F46E5;
+        }
+    </style>
+
+    <!-- Chosen Palette: Indigo-Violet Soft UI -->
+    <!-- Application Structure Plan: 
+         1. Dashboard (Home): Analytical view of the inventory. Visualizes distribution by category and condition using Chart.js.
+         2. Gestión (Registry): The core functional area to List, Search, and Add items. Now includes Location filtering/tagging.
+         3. Exportación (Tools): Dedicated section for generating the PDF report with Signature block.
+    -->
+    <!-- Visualization & Content Choices:
+         1. Doughnut Chart: Condition breakdown.
+         2. Bar Chart: Category breakdown.
+         3. Interactive List: Searchable grid of inventory items showing Location tags.
+         4. PDF Export: Includes signature line for "Docente Tutor".
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used (FontAwesome used). NO Mermaid JS used. -->
+</head>
+<body class="text-slate-800 h-screen flex flex-col md:flex-row overflow-hidden">
+
+    <!-- Sidebar Navigation -->
+    <aside class="w-full md:w-64 bg-white shadow-lg z-20 flex-shrink-0 flex flex-col justify-between md:h-full">
+        <div>
+            <div class="p-6 bg-gradient-to-r from-indigo-600 to-violet-600 text-white flex items-center gap-3">
+                <i class="fa-solid fa-box-open text-2xl"></i>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight">InventarioPro</h1>
+                    <p class="text-xs text-indigo-100 opacity-80">Suite de Gestión</p>
+                </div>
+            </div>
+            
+            <nav class="mt-6 flex flex-col gap-1 px-2">
+                <button onclick="router('dashboard')" id="nav-dashboard" class="nav-btn w-full text-left px-4 py-3 rounded-r-lg hover:bg-slate-50 transition-colors flex items-center gap-3 text-slate-600 font-medium nav-active">
+                    <i class="fa-solid fa-chart-pie w-6 text-center"></i> Dashboard
+                </button>
+                <button onclick="router('inventory')" id="nav-inventory" class="nav-btn w-full text-left px-4 py-3 rounded-r-lg hover:bg-slate-50 transition-colors flex items-center gap-3 text-slate-600 font-medium">
+                    <i class="fa-solid fa-list-check w-6 text-center"></i> Mi Inventario
+                </button>
+                <button onclick="router('add')" id="nav-add" class="nav-btn w-full text-left px-4 py-3 rounded-r-lg hover:bg-slate-50 transition-colors flex items-center gap-3 text-slate-600 font-medium">
+                    <i class="fa-solid fa-plus-circle w-6 text-center"></i> Nuevo Item
+                </button>
+            </nav>
+        </div>
+        
+        <div class="p-4 border-t border-slate-100">
+            <button onclick="exportPDF()" class="w-full py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition shadow-md flex items-center justify-center gap-2">
+                <i class="fa-solid fa-file-pdf"></i> Exportar PDF
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-y-auto bg-slate-50 relative">
+        
+        <!-- View: DASHBOARD -->
+        <section id="view-dashboard" class="p-6 md:p-10 fade-in">
+            <header class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800">Resumen Analítico</h2>
+                <p class="text-slate-500 mt-1 max-w-2xl">
+                    Bienvenido a su panel de control. Aquí se analiza la composición de su inventario escolar. Utilice esta información para reportes a dirección.
+                </p>
+            </header>
+
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-cubes"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-400 font-bold uppercase tracking-wider">Items Registrados</p>
+                        <h3 class="text-3xl font-bold text-slate-800" id="kpi-total-items">0</h3>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-400 font-bold uppercase tracking-wider">Unidades Totales</p>
+                        <h3 class="text-3xl font-bold text-slate-800" id="kpi-total-units">0</h3>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-check-circle"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-400 font-bold uppercase tracking-wider">En Buen Estado</p>
+                        <h3 class="text-3xl font-bold text-slate-800" id="kpi-good-condition">0%</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Condition Chart -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 class="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-heart-pulse text-rose-500"></i> Condición de los Bienes
+                    </h3>
+                    <div class="chart-wrapper">
+                        <canvas id="conditionChart"></canvas>
+                    </div>
+                    <p class="text-xs text-center text-slate-400 mt-4">Proporción de bienes según su estado físico actual.</p>
+                </div>
+
+                <!-- Category Chart -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 class="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-tags text-indigo-500"></i> Distribución por Categoría
+                    </h3>
+                    <div class="chart-wrapper">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                    <p class="text-xs text-center text-slate-400 mt-4">Cantidad de unidades agrupadas por tipo de bien.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- View: INVENTORY LIST -->
+        <section id="view-inventory" class="p-6 md:p-10 hidden fade-in">
+            <header class="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">Mi Inventario</h2>
+                    <p class="text-slate-500 mt-1">Gestione, busque y filtre por ubicación.</p>
+                </div>
+                <div class="relative w-full md:w-auto">
+                    <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="searchInput" onkeyup="renderInventoryList()" placeholder="Buscar útiles, muebles..." class="w-full md:w-64 pl-10 pr-4 py-2 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+            </header>
+
+            <div id="inventory-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-20">
+                <!-- Items will be injected here via JS -->
+            </div>
+            
+            <!-- Empty State -->
+            <div id="empty-state" class="hidden flex-col items-center justify-center py-20 text-center">
+                <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-300 mb-4">
+                    <i class="fa-solid fa-box-open text-4xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-600">No hay registros</h3>
+                <p class="text-slate-400 mb-6">Comience agregando su primer bien.</p>
+                <button onclick="router('add')" class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">Agregar Nuevo</button>
+            </div>
+        </section>
+
+        <!-- View: ADD FORM -->
+        <section id="view-add" class="p-6 md:p-10 hidden fade-in max-w-3xl mx-auto">
+            <header class="mb-8 border-b border-slate-200 pb-4 flex justify-between items-center">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">Nuevo Registro</h2>
+                    <p class="text-slate-500 mt-1">Ingrese los detalles del bien y asigne su ubicación.</p>
+                </div>
+                <button onclick="router('inventory')" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-times text-xl"></i>
+                </button>
+            </header>
+
+            <form id="addForm" onsubmit="handleFormSubmit(event)" class="space-y-6 bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-100">
+                
+                <!-- Image Upload with CAMERA Support -->
+                <div class="flex justify-center mb-6">
+                    <label class="w-full h-48 border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50 hover:border-indigo-400 transition relative overflow-hidden group">
+                        <img id="preview-image" class="hidden w-full h-full object-contain p-2">
+                        <div id="upload-placeholder" class="text-center">
+                            <div class="w-12 h-12 bg-indigo-100 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:scale-110 transition">
+                                <i class="fa-solid fa-camera"></i>
+                            </div>
+                            <span class="text-sm font-medium text-slate-600">Tocar para tomar foto o subir</span>
+                        </div>
+                        <!-- "capture" attribute enables direct camera access on mobile -->
+                        <input type="file" id="item-image" accept="image/*" capture="environment" class="hidden" onchange="previewImage(this)">
+                    </label>
+                </div>
+
+                <!-- Fields -->
+                <div class="space-y-4">
+                    <!-- Location Selector -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Ubicación / Espacio</label>
+                        <select id="item-location" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <option>Patio</option>
+                            <option>Oficina de Dirección</option>
+                            <option>Oficina de Regencia</option>
+                            <option>Oficina de Secretaría</option>
+                            <option>Sala de Cómputo</option>
+                            <option>Depósito</option>
+                            <option>Comedor</option>
+                            <option>Baños Nivel Primario</option>
+                            <option>Baños Nivel Secundario</option>
+                            <option>Aulas Generales</option>
+                            <option>Biblioteca</option>
+                            <option>Otros</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre del Bien</label>
+                        <input type="text" id="item-name" required class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Ej. Laptop Dell, Mesas bipersonales...">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cantidad</label>
+                            <input type="number" id="item-quantity" min="1" value="1" required class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-center font-bold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Categoría</label>
+                            <select id="item-category" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <option>Útiles Escolares</option>
+                                <option>Mobiliario</option>
+                                <option>Electrónica</option>
+                                <option>Vehículos</option>
+                                <option>Herramientas</option>
+                                <option>Insumos</option>
+                                <option>Otros</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Condición</label>
+                        <div class="grid grid-cols-4 gap-2">
+                            <button type="button" onclick="setCondition('Nuevo')" class="condition-btn py-2 border rounded-lg text-sm font-medium hover:bg-slate-50" data-val="Nuevo">Nuevo</button>
+                            <button type="button" onclick="setCondition('Bueno')" class="condition-btn py-2 border rounded-lg text-sm font-medium hover:bg-slate-50 bg-indigo-600 text-white border-indigo-600" data-val="Bueno">Bueno</button>
+                            <button type="button" onclick="setCondition('Regular')" class="condition-btn py-2 border rounded-lg text-sm font-medium hover:bg-slate-50" data-val="Regular">Regular</button>
+                            <button type="button" onclick="setCondition('Malo')" class="condition-btn py-2 border rounded-lg text-sm font-medium hover:bg-slate-50" data-val="Malo">Malo</button>
+                        </div>
+                        <input type="hidden" id="item-condition" value="Bueno">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Notas</label>
+                        <textarea id="item-desc" rows="2" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-none" placeholder="Detalles adicionales..."></textarea>
+                    </div>
+                </div>
+
+                <div class="pt-4 flex gap-3">
+                    <button type="button" onclick="router('inventory')" class="flex-1 py-3 text-slate-600 font-bold bg-slate-100 hover:bg-slate-200 rounded-lg transition">Cancelar</button>
+                    <button type="submit" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-lg hover:bg-indigo-700 transition">Guardar</button>
+                </div>
+            </form>
+        </section>
+
+    </main>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- State Management ---
+        let inventory = JSON.parse(localStorage.getItem('inventory_data')) || [];
+        let charts = {}; // Store chart instances
+
+        // --- Core Functions ---
+        
+        // Navigation Router
+        function router(viewId) {
+            // Hide all views
+            document.querySelectorAll('section').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('nav-active', 'bg-slate-50', 'text-indigo-600', 'border-r-4', 'border-indigo-600'));
+            
+            // Show selected view
+            document.getElementById(`view-${viewId}`).classList.remove('hidden');
+            
+            // Highlight Nav
+            if(document.getElementById(`nav-${viewId}`)) {
+                const nav = document.getElementById(`nav-${viewId}`);
+                nav.classList.add('nav-active');
+            }
+
+            // View specific logic
+            if(viewId === 'dashboard') updateDashboard();
+            if(viewId === 'inventory') renderInventoryList();
+        }
+
+        // --- Data Logic ---
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('item-image');
+            const newItem = {
+                id: Date.now(),
+                name: document.getElementById('item-name').value,
+                quantity: parseInt(document.getElementById('item-quantity').value) || 1,
+                location: document.getElementById('item-location').value, // Capture Location
+                category: document.getElementById('item-category').value,
+                condition: document.getElementById('item-condition').value,
+                description: document.getElementById('item-desc').value,
+                date: new Date().toLocaleDateString(),
+                image: null // Will be set below
+            };
+
+            const saveAndReset = () => {
+                inventory.unshift(newItem);
+                localStorage.setItem('inventory_data', JSON.stringify(inventory));
+                
+                // Reset form
+                document.getElementById('addForm').reset();
+                document.getElementById('preview-image').classList.add('hidden');
+                document.getElementById('upload-placeholder').classList.remove('hidden');
+                setCondition('Bueno'); // Reset to default
+                
+                router('inventory');
+            };
+
+            if (fileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    newItem.image = reader.result;
+                    saveAndReset();
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+            } else {
+                saveAndReset();
+            }
+        }
+
+        function deleteItem(id) {
+            if(confirm('¿Eliminar este registro permanentemente?')) {
+                inventory = inventory.filter(item => item.id !== id);
+                localStorage.setItem('inventory_data', JSON.stringify(inventory));
+                renderInventoryList();
+            }
+        }
+
+        // --- Visualization & Dashboard Logic ---
+
+        function updateDashboard() {
+            // KPI Calculations
+            const totalItems = inventory.length;
+            const totalUnits = inventory.reduce((sum, item) => sum + item.quantity, 0);
+            const goodConditionCount = inventory.filter(i => i.condition === 'Nuevo' || i.condition === 'Bueno').length;
+            const goodPercentage = totalItems > 0 ? Math.round((goodConditionCount / totalItems) * 100) : 0;
+
+            // DOM Updates for KPIs
+            animateValue("kpi-total-items", parseInt(document.getElementById("kpi-total-items").innerText), totalItems, 500);
+            animateValue("kpi-total-units", parseInt(document.getElementById("kpi-total-units").innerText), totalUnits, 500);
+            document.getElementById("kpi-good-condition").innerText = `${goodPercentage}%`;
+
+            // Prepare Chart Data
+            const conditions = ['Nuevo', 'Bueno', 'Regular', 'Malo'];
+            const condCounts = conditions.map(c => inventory.filter(i => i.condition === c).length);
+
+            // Group Categories dynamically
+            const catMap = {};
+            inventory.forEach(i => {
+                catMap[i.category] = (catMap[i.category] || 0) + i.quantity;
+            });
+            const catLabels = Object.keys(catMap);
+            const catData = Object.values(catMap);
+
+            // Render Charts
+            renderChart('conditionChart', 'doughnut', {
+                labels: conditions,
+                datasets: [{
+                    data: condCounts,
+                    backgroundColor: ['#10B981', '#4F46E5', '#F59E0B', '#EF4444'],
+                    borderWidth: 0
+                }]
+            });
+
+            renderChart('categoryChart', 'bar', {
+                labels: catLabels,
+                datasets: [{
+                    label: 'Unidades',
+                    data: catData,
+                    backgroundColor: '#818CF8',
+                    borderRadius: 6
+                }]
+            });
+        }
+
+        function renderChart(canvasId, type, data) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            // Destroy existing chart to prevent overlay
+            if (charts[canvasId]) {
+                charts[canvasId].destroy();
+            }
+
+            charts[canvasId] = new Chart(ctx, {
+                type: type,
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false, // Critical for container responsiveness
+                    plugins: {
+                        legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } }
+                    },
+                    scales: type === 'bar' ? {
+                        y: { beginAtZero: true, grid: { display: false } },
+                        x: { grid: { display: false } }
+                    } : {}
+                }
+            });
+        }
+
+        // --- UI Helper Functions ---
+
+        function renderInventoryList() {
+            const grid = document.getElementById('inventory-grid');
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = inventory.filter(i => 
+                i.name.toLowerCase().includes(term) || 
+                i.category.toLowerCase().includes(term) ||
+                (i.location && i.location.toLowerCase().includes(term)) // Filter by location too
+            );
+
+            grid.innerHTML = '';
+            
+            if(filtered.length === 0) {
+                document.getElementById('empty-state').classList.remove('hidden');
+                document.getElementById('empty-state').classList.add('flex');
+            } else {
+                document.getElementById('empty-state').classList.add('hidden');
+                document.getElementById('empty-state').classList.remove('flex');
+
+                filtered.forEach(item => {
+                    const condColors = {
+                        'Nuevo': 'bg-emerald-100 text-emerald-700',
+                        'Bueno': 'bg-indigo-100 text-indigo-700',
+                        'Regular': 'bg-orange-100 text-orange-700',
+                        'Malo': 'bg-rose-100 text-rose-700'
+                    };
+
+                    const card = document.createElement('div');
+                    card.className = 'bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex gap-4 hover:shadow-md transition-shadow group';
+                    card.innerHTML = `
+                        <div class="w-24 h-24 bg-slate-50 rounded-xl flex-shrink-0 overflow-hidden relative border border-slate-100">
+                            ${item.image 
+                                ? `<img src="${item.image}" class="w-full h-full object-cover">` 
+                                : `<div class="w-full h-full flex items-center justify-center text-slate-300"><i class="fa-solid fa-image text-2xl"></i></div>`
+                            }
+                            <div class="absolute bottom-0 right-0 bg-slate-800 text-white text-xs px-2 py-1 rounded-tl-lg font-bold shadow-sm">x${item.quantity}</div>
+                        </div>
+                        <div class="flex-1 min-w-0 flex flex-col justify-between py-1">
+                            <div>
+                                <div class="flex justify-between items-start">
+                                    <h3 class="font-bold text-slate-800 truncate pr-2 text-lg">${item.name}</h3>
+                                    <button onclick="deleteItem(${item.id})" class="text-slate-300 hover:text-rose-500 transition"><i class="fa-solid fa-trash-can"></i></button>
+                                </div>
+                                <div class="flex flex-wrap gap-2 mt-1">
+                                    <span class="text-xs text-indigo-500 font-bold uppercase tracking-wide">${item.category}</span>
+                                    <span class="text-xs text-slate-400 font-medium">| <i class="fa-solid fa-location-dot ml-1 mr-0.5"></i> ${item.location || 'Sin Ubicación'}</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between mt-2">
+                                <span class="px-2 py-1 rounded-md text-xs font-bold uppercase ${condColors[item.condition] || 'bg-slate-100'}">${item.condition}</span>
+                                ${item.description ? `<span class="text-xs text-slate-400 italic truncate max-w-[100px]"><i class="fa-solid fa-note-sticky mr-1"></i>${item.description}</span>` : ''}
+                            </div>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            }
+        }
+
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('preview-image').src = e.target.result;
+                    document.getElementById('preview-image').classList.remove('hidden');
+                    document.getElementById('upload-placeholder').classList.add('hidden');
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function setCondition(val) {
+            document.getElementById('item-condition').value = val;
+            document.querySelectorAll('.condition-btn').forEach(btn => {
+                if(btn.dataset.val === val) {
+                    btn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600');
+                    btn.classList.remove('hover:bg-slate-50');
+                } else {
+                    btn.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600');
+                    btn.classList.add('hover:bg-slate-50');
+                }
+            });
+        }
+
+        // Animation Helper
+        function animateValue(id, start, end, duration) {
+            if (start === end) return;
+            const range = end - start;
+            let current = start;
+            const increment = end > start ? 1 : -1;
+            const stepTime = Math.abs(Math.floor(duration / range));
+            const obj = document.getElementById(id);
+            const timer = setInterval(function() {
+                current += increment;
+                obj.innerHTML = current;
+                if (current == end) {
+                    clearInterval(timer);
+                }
+            }, Math.max(stepTime, 10)); // Min 10ms
+        }
+
+        // --- Export Logic ---
+
+        async function exportPDF() {
+            if (!window.jspdf) { alert("Librerías cargando..."); return; }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // Header Design
+            doc.setFillColor(79, 70, 229); // Indigo 600
+            doc.rect(0, 0, 210, 25, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(18);
+            doc.text("Reporte de Inventario Escolar", 14, 17);
+            
+            doc.setFontSize(10);
+            doc.text(`Generado: ${new Date().toLocaleDateString()}`, 170, 17, { align: 'right' });
+
+            const totalU = inventory.reduce((sum, item) => sum + item.quantity, 0);
+            doc.setTextColor(0,0,0);
+            doc.text(`Resumen: ${inventory.length} registros | ${totalU} unidades totales`, 14, 35);
+
+            // Table Data with Location
+            const tableRows = inventory.map(item => [
+                item.id,
+                '', // Image placeholder
+                item.quantity,
+                item.name,
+                item.category,
+                item.location || '-', // New Column data
+                item.condition,
+                item.description || '-'
+            ]);
+
+            doc.autoTable({
+                head: [["ID", "FOTO", "CANT", "NOMBRE", "CATEGORÍA", "UBICACIÓN", "ESTADO", "NOTAS"]],
+                body: tableRows,
+                startY: 40,
+                theme: 'grid',
+                styles: { fontSize: 8, valign: 'middle', cellPadding: 2 },
+                headStyles: { fillColor: [79, 70, 229] },
+                columnStyles: {
+                    0: { cellWidth: 15 },
+                    1: { cellWidth: 15 },
+                    2: { cellWidth: 10, halign: 'center' },
+                    5: { fontStyle: 'bold' } // Emphasize Location
+                },
+                minCellHeight: 15,
+                didDrawCell: (data) => {
+                    if (data.column.index === 1 && data.cell.section === 'body') {
+                        const item = inventory[data.row.index];
+                        if (item && item.image) {
+                            try {
+                                const dim = data.cell.height - 2;
+                                doc.addImage(item.image, data.cell.x + 1, data.cell.y + 1, dim, dim);
+                            } catch(e) {}
+                        }
+                    }
+                }
+            });
+
+            // --- Signature Block ---
+            // Calculate Y position based on where table ends
+            let finalY = doc.lastAutoTable.finalY || 100;
+            
+            // Check if we need a new page for signature
+            if (finalY > 230) {
+                doc.addPage();
+                finalY = 30;
+            }
+
+            // Draw line and text
+            doc.setDrawColor(0);
+            doc.setLineWidth(0.5);
+            doc.line(70, finalY + 40, 140, finalY + 40); // Horizontal line
+            
+            doc.setFontSize(11);
+            doc.text("Firma del Docente Tutor", 105, finalY + 48, { align: 'center' });
+
+            doc.save(`Inventario_Escolar_${new Date().toISOString().slice(0,10)}.pdf`);
+        }
+
+        // --- Init ---
+        window.onload = () => {
+            router('dashboard'); // Start at Dashboard
+        };
+
+    </script>
+</body>
+</html>
