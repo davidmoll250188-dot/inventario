@@ -24,7 +24,7 @@
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; }
         
-        /* Chart Container Styles - STRICTLY ENFORCED */
+        /* Chart Container Styles */
         .chart-wrapper {
             position: relative;
             width: 100%;
@@ -56,20 +56,6 @@
             border-right: 4px solid #4F46E5;
         }
     </style>
-
-    <!-- Chosen Palette: Indigo-Violet Soft UI -->
-    <!-- Application Structure Plan: 
-         1. Dashboard (Home): Analytical view of the inventory. Visualizes distribution by category and condition using Chart.js.
-         2. Gestión (Registry): The core functional area to List, Search, and Add items. Now includes Location filtering/tagging.
-         3. Exportación (Tools): Dedicated section for generating the PDF report with Signature block.
-    -->
-    <!-- Visualization & Content Choices:
-         1. Doughnut Chart: Condition breakdown.
-         2. Bar Chart: Category breakdown.
-         3. Interactive List: Searchable grid of inventory items showing Location tags.
-         4. PDF Export: Includes signature line for "Docente Tutor".
-    -->
-    <!-- CONFIRMATION: NO SVG graphics used (FontAwesome used). NO Mermaid JS used. -->
 </head>
 <body class="text-slate-800 h-screen flex flex-col md:flex-row overflow-hidden">
 
@@ -112,9 +98,21 @@
             <header class="mb-8">
                 <h2 class="text-2xl font-bold text-slate-800">Resumen Analítico</h2>
                 <p class="text-slate-500 mt-1 max-w-2xl">
-                    Bienvenido a su panel de control. Aquí se analiza la composición de su inventario escolar. Utilice esta información para reportes a dirección.
+                    Bienvenido al panel de control. Configure los datos generales y visualice el estado del inventario.
                 </p>
             </header>
+
+            <!-- Responsible Person Input -->
+            <div class="bg-indigo-50 border border-indigo-100 p-6 rounded-2xl mb-8 flex flex-col md:flex-row items-center gap-4 shadow-sm">
+                <div class="bg-white p-3 rounded-full text-indigo-600 shadow-sm">
+                    <i class="fa-solid fa-user-pen text-xl"></i>
+                </div>
+                <div class="flex-1 w-full">
+                    <label for="responsible-name" class="block text-sm font-bold text-indigo-900 mb-1">Nombre del Responsable del Inventario</label>
+                    <input type="text" id="responsible-name" placeholder="Escriba su nombre completo aquí..." class="w-full p-3 rounded-lg border-0 ring-1 ring-indigo-200 focus:ring-2 focus:ring-indigo-500 text-slate-700 shadow-inner" oninput="saveResponsibleName()">
+                    <p class="text-xs text-indigo-400 mt-1">* Este nombre aparecerá en el reporte PDF exportado.</p>
+                </div>
+            </div>
 
             <!-- KPI Cards -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -159,7 +157,6 @@
                     <div class="chart-wrapper">
                         <canvas id="conditionChart"></canvas>
                     </div>
-                    <p class="text-xs text-center text-slate-400 mt-4">Proporción de bienes según su estado físico actual.</p>
                 </div>
 
                 <!-- Category Chart -->
@@ -170,7 +167,6 @@
                     <div class="chart-wrapper">
                         <canvas id="categoryChart"></canvas>
                     </div>
-                    <p class="text-xs text-center text-slate-400 mt-4">Cantidad de unidades agrupadas por tipo de bien.</p>
                 </div>
             </div>
         </section>
@@ -192,7 +188,6 @@
                 <!-- Items will be injected here via JS -->
             </div>
             
-            <!-- Empty State -->
             <div id="empty-state" class="hidden flex-col items-center justify-center py-20 text-center">
                 <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-300 mb-4">
                     <i class="fa-solid fa-box-open text-4xl"></i>
@@ -227,7 +222,6 @@
                             </div>
                             <span class="text-sm font-medium text-slate-600">Tocar para tomar foto o subir</span>
                         </div>
-                        <!-- "capture" attribute enables direct camera access on mobile -->
                         <input type="file" id="item-image" accept="image/*" capture="environment" class="hidden" onchange="previewImage(this)">
                     </label>
                 </div>
@@ -237,19 +231,46 @@
                     <!-- Location Selector -->
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Ubicación / Espacio</label>
-                        <select id="item-location" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
-                            <option>Patio</option>
-                            <option>Oficina de Dirección</option>
-                            <option>Oficina de Regencia</option>
-                            <option>Oficina de Secretaría</option>
-                            <option>Sala de Cómputo</option>
-                            <option>Depósito</option>
-                            <option>Comedor</option>
-                            <option>Baños Nivel Primario</option>
-                            <option>Baños Nivel Secundario</option>
-                            <option>Aulas Generales</option>
-                            <option>Biblioteca</option>
-                            <option>Otros</option>
+                        <select id="item-location" onchange="toggleSubLocation()" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-colors">
+                            <option value="Patio">Patio</option>
+                            <option value="Oficina de Dirección">Oficina de Dirección</option>
+                            <option value="Oficina de Regencia">Oficina de Regencia</option>
+                            <option value="Oficina de Secretaría">Oficina de Secretaría</option>
+                            <option value="Sala de Cómputo">Sala de Cómputo</option>
+                            <option value="Depósito">Depósito</option>
+                            <option value="Comedor">Comedor</option>
+                            <option value="Baños Nivel Primario">Baños Nivel Primario</option>
+                            <option value="Baños Nivel Secundario">Baños Nivel Secundario</option>
+                            <option value="Aulas Generales">Aulas Generales</option>
+                            <option value="Biblioteca">Biblioteca</option>
+                            <option value="Otros">Otros</option>
+                        </select>
+                    </div>
+
+                    <!-- Dynamic Sub-Location (Hidden by default) -->
+                    <div id="sub-location-container" class="hidden bg-indigo-50 p-4 rounded-xl border border-indigo-100 animate-fade-in">
+                        <label class="block text-xs font-bold text-indigo-800 uppercase mb-1"><i class="fa-solid fa-graduation-cap mr-1"></i> Seleccionar Aula Específica</label>
+                        <select id="item-sub-location" class="w-full p-3 bg-white border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-indigo-900 font-medium">
+                            <optgroup label="Nivel Inicial">
+                                <option>INI 3 AÑOS</option>
+                                <option>INI 4 AÑOS</option>
+                                <option>INI 5 AÑOS</option>
+                            </optgroup>
+                            <optgroup label="Nivel Primaria">
+                                <option>PRIMERO P</option>
+                                <option>SEGUNDO P</option>
+                                <option>TERCERO P</option>
+                                <option>CUARTO P</option>
+                                <option>QUINTO P</option>
+                                <option>SEXTO P</option>
+                            </optgroup>
+                            <optgroup label="Nivel Secundaria">
+                                <option>PRIMERO S</option>
+                                <option>SEGUNDO S</option>
+                                <option>TERCERO S</option>
+                                <option>CUARTO S</option>
+                                <option>QUINTO S</option>
+                            </optgroup>
                         </select>
                     </div>
 
@@ -307,57 +328,81 @@
     <script>
         // --- State Management ---
         let inventory = JSON.parse(localStorage.getItem('inventory_data')) || [];
-        let charts = {}; // Store chart instances
+        let responsibleName = localStorage.getItem('inventory_responsible') || "";
+        let charts = {};
 
         // --- Core Functions ---
         
-        // Navigation Router
         function router(viewId) {
-            // Hide all views
             document.querySelectorAll('section').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('nav-active', 'bg-slate-50', 'text-indigo-600', 'border-r-4', 'border-indigo-600'));
             
-            // Show selected view
             document.getElementById(`view-${viewId}`).classList.remove('hidden');
             
-            // Highlight Nav
             if(document.getElementById(`nav-${viewId}`)) {
                 const nav = document.getElementById(`nav-${viewId}`);
                 nav.classList.add('nav-active');
             }
 
-            // View specific logic
-            if(viewId === 'dashboard') updateDashboard();
+            if(viewId === 'dashboard') {
+                updateDashboard();
+                // Load saved name
+                document.getElementById('responsible-name').value = responsibleName;
+            }
             if(viewId === 'inventory') renderInventoryList();
         }
 
         // --- Data Logic ---
 
+        function toggleSubLocation() {
+            const loc = document.getElementById('item-location').value;
+            const subContainer = document.getElementById('sub-location-container');
+            if(loc === 'Aulas Generales') {
+                subContainer.classList.remove('hidden');
+            } else {
+                subContainer.classList.add('hidden');
+            }
+        }
+
+        function saveResponsibleName() {
+            const name = document.getElementById('responsible-name').value;
+            responsibleName = name;
+            localStorage.setItem('inventory_responsible', name);
+        }
+
         function handleFormSubmit(e) {
             e.preventDefault();
             
             const fileInput = document.getElementById('item-image');
+            
+            // Logic for Location + SubLocation
+            let locationVal = document.getElementById('item-location').value;
+            if (locationVal === 'Aulas Generales') {
+                const subLoc = document.getElementById('item-sub-location').value;
+                locationVal = `Aulas Generales - ${subLoc}`;
+            }
+
             const newItem = {
                 id: Date.now(),
                 name: document.getElementById('item-name').value,
                 quantity: parseInt(document.getElementById('item-quantity').value) || 1,
-                location: document.getElementById('item-location').value, // Capture Location
+                location: locationVal,
                 category: document.getElementById('item-category').value,
                 condition: document.getElementById('item-condition').value,
                 description: document.getElementById('item-desc').value,
                 date: new Date().toLocaleDateString(),
-                image: null // Will be set below
+                image: null
             };
 
             const saveAndReset = () => {
                 inventory.unshift(newItem);
                 localStorage.setItem('inventory_data', JSON.stringify(inventory));
                 
-                // Reset form
                 document.getElementById('addForm').reset();
                 document.getElementById('preview-image').classList.add('hidden');
                 document.getElementById('upload-placeholder').classList.remove('hidden');
-                setCondition('Bueno'); // Reset to default
+                document.getElementById('sub-location-container').classList.add('hidden'); // Reset sub-location visibility
+                setCondition('Bueno');
                 
                 router('inventory');
             };
@@ -385,22 +430,18 @@
         // --- Visualization & Dashboard Logic ---
 
         function updateDashboard() {
-            // KPI Calculations
             const totalItems = inventory.length;
             const totalUnits = inventory.reduce((sum, item) => sum + item.quantity, 0);
             const goodConditionCount = inventory.filter(i => i.condition === 'Nuevo' || i.condition === 'Bueno').length;
             const goodPercentage = totalItems > 0 ? Math.round((goodConditionCount / totalItems) * 100) : 0;
 
-            // DOM Updates for KPIs
             animateValue("kpi-total-items", parseInt(document.getElementById("kpi-total-items").innerText), totalItems, 500);
             animateValue("kpi-total-units", parseInt(document.getElementById("kpi-total-units").innerText), totalUnits, 500);
             document.getElementById("kpi-good-condition").innerText = `${goodPercentage}%`;
 
-            // Prepare Chart Data
             const conditions = ['Nuevo', 'Bueno', 'Regular', 'Malo'];
             const condCounts = conditions.map(c => inventory.filter(i => i.condition === c).length);
 
-            // Group Categories dynamically
             const catMap = {};
             inventory.forEach(i => {
                 catMap[i.category] = (catMap[i.category] || 0) + i.quantity;
@@ -408,7 +449,6 @@
             const catLabels = Object.keys(catMap);
             const catData = Object.values(catMap);
 
-            // Render Charts
             renderChart('conditionChart', 'doughnut', {
                 labels: conditions,
                 datasets: [{
@@ -431,18 +471,14 @@
 
         function renderChart(canvasId, type, data) {
             const ctx = document.getElementById(canvasId).getContext('2d');
-            
-            // Destroy existing chart to prevent overlay
-            if (charts[canvasId]) {
-                charts[canvasId].destroy();
-            }
+            if (charts[canvasId]) charts[canvasId].destroy();
 
             charts[canvasId] = new Chart(ctx, {
                 type: type,
                 data: data,
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false, // Critical for container responsiveness
+                    maintainAspectRatio: false,
                     plugins: {
                         legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } }
                     },
@@ -462,7 +498,7 @@
             const filtered = inventory.filter(i => 
                 i.name.toLowerCase().includes(term) || 
                 i.category.toLowerCase().includes(term) ||
-                (i.location && i.location.toLowerCase().includes(term)) // Filter by location too
+                (i.location && i.location.toLowerCase().includes(term))
             );
 
             grid.innerHTML = '';
@@ -539,7 +575,6 @@
             });
         }
 
-        // Animation Helper
         function animateValue(id, start, end, duration) {
             if (start === end) return;
             const range = end - start;
@@ -553,7 +588,7 @@
                 if (current == end) {
                     clearInterval(timer);
                 }
-            }, Math.max(stepTime, 10)); // Min 10ms
+            }, Math.max(stepTime, 10)); 
         }
 
         // --- Export Logic ---
@@ -564,27 +599,33 @@
             const doc = new jsPDF();
 
             // Header Design
-            doc.setFillColor(79, 70, 229); // Indigo 600
-            doc.rect(0, 0, 210, 25, 'F');
+            doc.setFillColor(79, 70, 229); 
+            doc.rect(0, 0, 210, 32, 'F'); // Taller header for name
             doc.setTextColor(255, 255, 255);
             doc.setFontSize(18);
             doc.text("Reporte de Inventario Escolar", 14, 17);
             
+            // Show Responsible Name
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "normal");
+            const respName = responsibleName || "No especificado";
+            doc.text(`Responsable del Inventario: ${respName}`, 14, 25);
+            
             doc.setFontSize(10);
-            doc.text(`Generado: ${new Date().toLocaleDateString()}`, 170, 17, { align: 'right' });
+            doc.text(`Generado: ${new Date().toLocaleDateString()}`, 195, 17, { align: 'right' });
 
             const totalU = inventory.reduce((sum, item) => sum + item.quantity, 0);
             doc.setTextColor(0,0,0);
-            doc.text(`Resumen: ${inventory.length} registros | ${totalU} unidades totales`, 14, 35);
+            doc.text(`Resumen: ${inventory.length} registros | ${totalU} unidades totales`, 14, 40);
 
-            // Table Data with Location
+            // Table Data with Location including specific grade
             const tableRows = inventory.map(item => [
                 item.id,
-                '', // Image placeholder
+                '', 
                 item.quantity,
                 item.name,
                 item.category,
-                item.location || '-', // New Column data
+                item.location || '-', 
                 item.condition,
                 item.description || '-'
             ]);
@@ -592,15 +633,15 @@
             doc.autoTable({
                 head: [["ID", "FOTO", "CANT", "NOMBRE", "CATEGORÍA", "UBICACIÓN", "ESTADO", "NOTAS"]],
                 body: tableRows,
-                startY: 40,
+                startY: 45,
                 theme: 'grid',
-                styles: { fontSize: 8, valign: 'middle', cellPadding: 2 },
+                styles: { fontSize: 8, valign: 'middle', cellPadding: 2, overflow: 'linebreak' },
                 headStyles: { fillColor: [79, 70, 229] },
                 columnStyles: {
                     0: { cellWidth: 15 },
                     1: { cellWidth: 15 },
                     2: { cellWidth: 10, halign: 'center' },
-                    5: { fontStyle: 'bold' } // Emphasize Location
+                    5: { fontStyle: 'bold', cellWidth: 35 } // Wider location column
                 },
                 minCellHeight: 15,
                 didDrawCell: (data) => {
@@ -617,19 +658,16 @@
             });
 
             // --- Signature Block ---
-            // Calculate Y position based on where table ends
             let finalY = doc.lastAutoTable.finalY || 100;
             
-            // Check if we need a new page for signature
             if (finalY > 230) {
                 doc.addPage();
                 finalY = 30;
             }
 
-            // Draw line and text
             doc.setDrawColor(0);
             doc.setLineWidth(0.5);
-            doc.line(70, finalY + 40, 140, finalY + 40); // Horizontal line
+            doc.line(70, finalY + 40, 140, finalY + 40); 
             
             doc.setFontSize(11);
             doc.text("Firma del Docente Tutor", 105, finalY + 48, { align: 'center' });
@@ -639,7 +677,7 @@
 
         // --- Init ---
         window.onload = () => {
-            router('dashboard'); // Start at Dashboard
+            router('dashboard'); 
         };
 
     </script>
